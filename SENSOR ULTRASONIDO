@@ -1,0 +1,65 @@
+int distancia_ultrasonido (void)
+{
+
+uint32_t tiempo;
+
+unsigned int cuenta ,f;
+uint8_t distancia;
+	cuenta=0;
+
+int trigger=4;
+	int echo=5;
+
+//config_timer(); //funcion timer
+
+GPIO_PORTB_DATA_R&=(0<<trigger) ; // Incialmente salida en "0" 
+delay_Systick_10us(); //delay
+
+GPIO_PORTB_DATA_R|= (1<<trigger) ;// Salida en "1" lógico para
+	//el flanco de subida
+delay_Systick_10us(); //tiempo del pulso de disparo 
+	
+GPIO_PORTB_DATA_R|= ~(1<<trigger) ;//Pulso a cero
+
+TIMER0_ICR_R |= 0x01;// nos aseguramos que este Limpio el RIS 
+
+while (( (GPIO_PORTB_DATA_R) & (1<<echo) ) ==0 ){} ;//espera 
+	
+TIMER1_CTL_R |= (TIMER_CTL_TAEN);//Activación del timer 1
+
+while((GPIO_PORTB_DATA_R &( 1<<echo)) != 0);//espero un flanco de
+
+// bajada por parte del "echo"
+
+TIMER1_CTL_R &= ~(TIMER_CTL_TAEN);//Desactivación del timer 
+cuenta = TIMER1_TAR_R;
+
+//F=16 Mhz
+
+tiempo = ((0xFFFFFFFF-cuenta)*0.0625); // T=1/F en uSeg.; 
+distancia=tiempo/29/2; // distancia en centímetros
+
+// (Velocidad del sonido=340 m/s)
+
+TIMER1_TAILR_R=0xFFFFFFFF; //inicializamos el valor de la carga. 
+	return distancia ;
+
+}
+
+//Configura el temporizador del SYstick a 10 us, para el sensor
+//ultrasonico
+
+
+// Configura el Timer1 para cuenta descendente
+void Configura_Timer1(void){
+
+unsigned long temp;
+
+SYSCTL_RCGC1_R = SYSCTL_RCGC1_TIMER1;
+temp=SYSCTL_RCGC1_R;
+
+TIMER1_CTL_R &= ~TIMER_CTL_TAEN; 
+TIMER1_CFG_R = 0x00;
+	TIMER1_TAMR_R = 0x02;
+ TIMER1_TAILR_R = ~0; 
+TIMER1_ICR_R |= 0x01; } 
